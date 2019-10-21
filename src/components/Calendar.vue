@@ -60,7 +60,6 @@
                         v-model="selectedOpen"
                         :close-on-content-click="false"
                         :activator="selectedElement"
-                        full-width
                         offset-x
                 >
                     <v-card
@@ -72,20 +71,25 @@
                                 :color="selectedEvent.color"
                                 dark
                         >
-                            <v-btn icon>
-                                <v-icon>mdi-pencil</v-icon>
+                            <v-btn @click="deleteEvent(selectedEvent.id)" icon>
+                                <v-icon>mdi-delete</v-icon>
                             </v-btn>
                             <v-toolbar-title v-html="selectedEvent.name"></v-toolbar-title>
                             <v-spacer></v-spacer>
-                            <v-btn icon>
-                                <v-icon>mdi-heart</v-icon>
-                            </v-btn>
-                            <v-btn icon>
-                                <v-icon>mdi-dots-vertical</v-icon>
-                            </v-btn>
                         </v-toolbar>
                         <v-card-text>
-                            <span v-html="selectedEvent.details"></span>
+                            <form v-if="currentlyEditing !== selectedEvent.id">
+                                {{selectedEvent.details}}
+                            </form>
+                            <form v-else>
+                                <textarea-autosize
+                                    v-model="selectedEvent.details"
+                                    type="text"
+                                    style="width: 100%"
+                                    :min-height="100"
+                                    placeholder="agregar cita">
+                                </textarea-autosize>
+                            </form>
                         </v-card-text>
                         <v-card-actions>
                             <v-btn
@@ -93,7 +97,13 @@
                                     color="secondary"
                                     @click="selectedOpen = false"
                             >
-                                Cancel
+                                Cerrar
+                            </v-btn>
+                            <v-btn
+                                    text
+                                    v-if="currentlyEditing !== selectedEvent.id"
+                            >
+                                Edit
                             </v-btn>
                         </v-card-actions>
                     </v-card>
