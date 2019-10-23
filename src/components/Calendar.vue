@@ -1,11 +1,10 @@
-<template>
+<template xmlns:v-slot="http://www.w3.org/1999/XSL/Transform">
     <v-row class="fill-height">
         <v-col>
             <v-sheet height="64">
                 <v-toolbar flat color="white">
-                    <v-btn outlined class="mr-4" @click="setToday">
-                        Today
-                    </v-btn>
+                    <v-btn color="primary" class="mr-4" @click="dialog = true" dark >Nueva Hora</v-btn>
+                    <v-btn outlined class="mr-4" @click="setToday">Hoy</v-btn>
                     <v-btn fab text small @click="prev">
                         <v-icon small>mdi-chevron-left</v-icon>
                     </v-btn>
@@ -26,21 +25,38 @@
                         </template>
                         <v-list>
                             <v-list-item @click="type = 'day'">
-                                <v-list-item-title>Day</v-list-item-title>
+                                <v-list-item-title>Dia</v-list-item-title>
                             </v-list-item>
                             <v-list-item @click="type = 'week'">
-                                <v-list-item-title>Week</v-list-item-title>
+                                <v-list-item-title>Semana</v-list-item-title>
                             </v-list-item>
                             <v-list-item @click="type = 'month'">
-                                <v-list-item-title>Month</v-list-item-title>
+                                <v-list-item-title>Mes</v-list-item-title>
                             </v-list-item>
                             <v-list-item @click="type = '4day'">
-                                <v-list-item-title>4 days</v-list-item-title>
+                                <v-list-item-title>4 Dias</v-list-item-title>
                             </v-list-item>
                         </v-list>
                     </v-menu>
                 </v-toolbar>
             </v-sheet>
+
+            <!-- Agregar evento de Dialog -->
+            <v-dialog v-model="dialog" max-width="500">
+                <v-card>
+                    <v-container>
+                        <v-form @submit.prevent="addEvent">
+                            <v-text-field v-model="name" type="text" label="nombre de la cita (obligatorio)"></v-text-field>
+                            <v-text-field v-model="details" type="text" label="details"></v-text-field>
+                            <v-text-field v-model="start" type="date" label="start (obligatorio)"></v-text-field>
+                            <v-text-field v-model="end" type="date" label="end (obligatorio)"></v-text-field>
+                            <v-text-field v-model="color" type="color" label="color"></v-text-field>
+                            <v-btn type="submit" color="primary" class="mr-4" @click.stop="dialog= false">Crear evento</v-btn>
+                        </v-form>
+                    </v-container>
+                </v-card>    
+            </v-dialog>
+
             <v-sheet height="600">
                 <v-calendar
                         ref="calendar"
@@ -79,7 +95,7 @@
                         </v-toolbar>
                         <v-card-text>
                             <form v-if="currentlyEditing !== selectedEvent.id">
-                                {{selectedEvent.details}}
+                                {{ selectedEvent.details }}
                             </form>
                             <form v-else>
                                 <textarea-autosize
@@ -95,16 +111,14 @@
                             <v-btn
                                     text
                                     color="secondary"
-                                    @click="selectedOpen = false"
-                            >
-                                Cerrar
-                            </v-btn>
+                                    @click="selectedOpen = false">Cerrar</v-btn>
                             <v-btn
                                     text
                                     v-if="currentlyEditing !== selectedEvent.id"
-                            >
-                                Edit
-                            </v-btn>
+                                    @click.prevent="editEvent(selectedEvent)">Edit</v-btn>
+                            <v-btn
+                                    text
+                                    v-else @click.prevent="updateEvent(selectedEvent)">Guardar</v-btn>
                         </v-card-actions>
                     </v-card>
                 </v-menu>
@@ -114,7 +128,7 @@
 </template>
 
 <script>
-    import {db} from '@/main';
+    import { db } from '@/main';
     export default {
         name: "Calendar",
         data: () => ({
@@ -122,16 +136,17 @@
             focus: new Date().toISOString().substr(0, 10),
             type: "month",
             typeToLabel: {
-                month: "Month",
-                week: "Week",
-                day: "Day",
-                "4day": "4 Days"
+                month: "Mes",
+                week: "Semana",
+                day: "Dia",
+                "4day": "4 Dias"
             },
+            //propiedades por defecto
             name: null,
             details: null,
             start: null,
             end: null,
-            color: null,
+            color: "#1976D2",
             currentlyEditing: null,
             selectedEvent: {},
             selectedElement: null,
@@ -174,7 +189,7 @@
                 })
             },
         },
-        mounted(){
+        mounted() {
             this.getEvents();
         },
         methods: {
@@ -187,6 +202,38 @@
                     events.push(appData);
                 });
             this.events = events
+            },
+            async addEvent(){
+                if (this.name && this.start && this.end) {
+                    await db.collection('cita').add({
+                        name: this.name,
+                        details: this.details,
+                        start: this.start,
+                        end: this.end,
+                        color: this.color
+                    });
+                    this.getEvents();
+                    this.name = "";
+                    this.details = "";
+                    this.start = "";
+                    this.end = "";
+                    this.color = "";
+                    } else{
+                    alert('Nombre, start y end son obligatorios')
+                }
+            },
+            async updateEvent (event) {
+                await db.collection('cita').doc(this.currentlyEditing).update({ 
+                    details: event.details
+                    })
+                this.selectedOpen = false;
+                this.currentlyEditing = null;
+            },
+            async deleteEvent (ev) {
+                await db.collection("cita").doc(ev).delete();
+                this.selectedOpen = false;
+                this.getEvents();
+                console.log("eliminado");
             },
             viewDay ({ date }) {
                 this.focus = date
@@ -203,6 +250,9 @@
             },
             next () {
                 this.$refs.calendar.next()
+            },
+            editEvent (ev) {
+                this.currentlyEditing = ev.id;
             },
             showEvent ({ nativeEvent, event }) {
                 const open = () => {
